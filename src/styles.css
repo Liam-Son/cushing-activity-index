@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #f4f6f7;
+  --color-surface: #ffffff;
+  --color-ink: #17232a;
+  --color-muted: #63737e;
+  --color-line: #dfe6e9;
+  --color-teal: #087e83;
+  --color-mint: #abf0cd;
+  --color-dark: #163b3b;
+  --color-paper: #faf4e4;
+  --color-paper-line: #eee3c7;
+  --color-warn: #866730;
+  --color-on-dark: #effaf5;
+  --color-on-dark-muted: #a9c7be;
+  --color-stage: #eaf0ef;
+  --color-stage-line: #dbe5e1;
+  --color-tab: #74838c;
+  --font-sans: "Noto Sans KR", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-xl: 1.0625rem;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
+
+@layer components {
+  .shell {
+    width: min(75rem, calc(100% - 2rem));
+    margin-inline: auto;
+  }
+  .tab-underline[data-state="active"] {
+    color: var(--color-teal);
+    font-weight: 700;
+    border-bottom-color: var(--color-teal);
+  }
+  .history-rail {
+    border-left: 1px solid var(--color-line);
+    margin-left: 0.5rem;
+    padding-left: 1.375rem;
+  }
+  .history-dot {
+    position: absolute;
+    left: -1.625rem;
+    top: 1.125rem;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 9999px;
+    background: var(--color-teal);
+    border: 2px solid var(--color-bg);
+  }
+  .when-open {
+    display: none;
+  }
+  details[open] > summary .when-closed,
+  details[open] .when-closed {
+    display: none;
+  }
+  details[open] > summary .when-open,
+  details[open] .when-open {
+    display: inline;
+  }
+  details[open] summary .chev-ico {
+    transform: rotate(180deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: calc(100% - 1.5rem);
+  }
+}

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>쿠싱 바쁨 밈</title>
+<style>
+  :root { font-family: ui-sans-serif, system-ui, sans-serif; background:#0f1419; color:#e8e4d9; }
+  body { max-width: 520px; margin: 32px auto; padding: 0 16px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 4px 0; }
+  .sub { color:#8b959e; font-size: 12px; }
+  .hero { background:#143044; border-radius: 16px; padding: 28px 20px; text-align:center; margin-top: 20px; }
+  .n { font-size: 72px; line-height:1; font-variant-numeric: tabular-nums; }
+  .lab { margin-top: 8px; letter-spacing: .16em; text-transform: uppercase; font-size: 12px; color:#c4a35a; }
+  table { width:100%; border-collapse: collapse; margin-top: 22px; font-size: 13px; }
+  th { text-align:left; color:#8b959e; font-weight:500; padding: 6px 0; }
+  td { padding: 8px 0; border-top: 1px solid #2a333c; }
+  td.r { text-align:right; font-variant-numeric: tabular-nums; }
+  .drop { color:#8b959e; font-size:12px; margin-top:18px; }
+  .rowbar { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:12px; }
+  .rowbar span { width:88px; color:#8b959e; }
+  .rowbar .g { flex:1; height:8px; background:#2a333c; border-radius:99px; overflow:hidden; display:flex; }
+  .rowbar .g i { display:block; height:100%; background:#c4a35a; }
+  .rowbar .g b { display:block; height:100%; background:#8b959e; opacity:.45; }
+</style>
+</head>
+<body>
+  <p class="sub">CFAM · 엔진 전부 이 파일</p>
+  <h1>쿠싱 바쁨 밈</h1>
+  <p class="sub">0–100 · 5분 재조회 · 알파 아님</p>
+  <h2 class="sub" style="margin-top:20px;letter-spacing:.14em;text-transform:uppercase;color:#c4a35a">적용 트랙</h2>
+  <div id="on"></div>
+  <h2 class="sub" style="margin-top:16px;letter-spacing:.14em;text-transform:uppercase;color:#c4a35a">ML/DL 가중 분배</h2>
+  <p class="sub" style="margin-top:8px;line-height:1.5">유가 예측 아님. 나머지 80%는 ridge+|β|와 얕은 MLP 순열중요도 평균. 핀치 U/A/M은 밈 고정(이력 상수 → ML 몫 0).</p>
+  <div id="ml"></div>
+  <h2 class="sub" style="margin-top:16px;letter-spacing:.14em;text-transform:uppercase">미적용</h2>
+  <div id="off"></div>
+  <div class="hero">
+    <div class="n" id="score">–</div>
+    <div class="lab" id="label"></div>
+    <div class="bar"><i id="bar"></i></div>
+  </div>
+  <table>
+    <thead><tr><th>다리</th><th class="r">가중</th><th class="r">점수</th><th class="r">기여</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="drop" id="drop"></p>
+  <p class="sub" id="meta"></p>
+<script>
+const PINCH = [
+  {id:"S",name:"091-S QSR",w:0.15,score:null,note:"관찰 파일 없음"},
+  {id:"U",name:"091-U 산업공고",w:0.10,score:50,note:"4/8"},
+  {id:"V",name:"091-V 허가",w:0.10,score:null,note:"원장 n 없음"},
+  {id:"A",name:"091-A 숙박세",w:0.05,score:58,note:"FY24 마지막월 %"},
+  {id:"H",name:"091-H 검색",w:0.05,score:null,note:"Trends 미수출"},
+  {id:"M",name:"091-M 시청공고",w:0.05,score:72,note:"수압·부스터"},
+  {id:"W",name:"091-W AQI",w:0.05,score:40,note:"CAMS AQI 40"},
+  {id:"Z",name:"091-Z 뉴스",w:0.05,score:50,note:"KUSH 7일"},
+  {id:"ADSB",name:"091-ADSB 저고도",w:0.05,score:22,note:"저고도 0"},
+  {id:"CAD",name:"091-CAD 산업",w:0.05,score:79,note:"표본 산업 2건"},
+  {id:"RADIO",name:"091-RADIO 허슬",w:0.01,score:24,note:"Riley Downing"},
+  {id:"X",name:"091-X 스프레드",w:0.01,score:null,note:"쌍 없음"},
+  {id:"Y",name:"091-Y 펌프갭",w:0.01,score:null,note:"표시가 없음"},
+];
+const FALLBACK = [
+  {id:"wiki",name:"위키",score:11.84,note:"캐시 7일 66",auto:true},
+  {id:"eia_move",name:"EIA |Δ|",score:38.46,note:"684 kbbl",auto:true},
+  {id:"eia_tight",name:"EIA 타이트",score:86.97,note:"21,824 kbbl",auto:true},
+];
+function pctile(x, xs){
+  if(!xs.length) return null;
+  const s=[...xs].sort((a,b)=>a-b);
+  return 100*s.filter(y=>y<=x).length/s.length;
+}
+function combine(auto){
+  const liveA=auto.filter(a=>a.score!=null);
+  const liveP=PINCH.filter(p=>p.score!=null);
+  const wP=liveP.reduce((s,p)=>s+p.w,0);
+  const rest=Math.max(0,1-wP);
+  const wEach=liveA.length?rest/liveA.length:0;
+  const legs=[]; let total=0, tw=0;
+  for(const a of liveA){
+    const w=+wEach.toFixed(4);
+    const contrib=+(w*a.score).toFixed(2);
+    legs.push({...a,w,contrib});
+    total+=w*a.score; tw+=w;
+  }
+  for(const p of liveP){
+    const contrib=+(p.w*p.score).toFixed(2);
+    legs.push({id:p.id,name:p.name,score:p.score,w:p.w,note:p.note,contrib});
+    total+=p.w*p.score; tw+=p.w;
+  }
+  const score=tw?total/tw:0;
+  legs.sort((a,b)=>b.w-a.w);
+  return {
+    tsUtc:new Date().toISOString(),
+    score:+score.toFixed(1),
+    label: score<40?"quiet":score>=60?"busy":"normal",
+    legs,
+    dropped: PINCH.filter(p=>p.score==null),
+    note:"브라우저에서 위키는 되고 EIA는 CORS로 막히면 캐시. 알파 아님."
+  };
+}
+function wikiFromItems(items){
+  if(!items.length) return null;
+  const series=items.map(x=>({d:x.timestamp.slice(0,8),v:x.views}));
+  const wmap=new Map(series.map(x=>[x.d,x.v]));
+  const last=series[series.length-1].d;
+  function ymd(s,back){
+    const t=Date.UTC(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8));
+    const n=new Date(t-back*86400000);
+    return `${n.getUTCFullYear()}${String(n.getUTCMonth()+1).padStart(2,"0")}${String(n.getUTCDate()).padStart(2,"0")}`;
+  }
+  function meanLast(n,end){
+    const xs=[];
+    for(let k=0;k<n;k++){ const v=wmap.get(ymd(end,k)); if(v!=null) xs.push(v); }
+    return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;
+  }
+  const w7=meanLast(7,last); if(w7==null) return null;
+  const hist=[];
+  for(let k=14;k<90;k++){ const m=meanLast(7,ymd(last,k)); if(m!=null) hist.push(m); }
+  const score=pctile(w7,hist); if(score==null) return null;
+  return {id:"wiki",name:"위키",score,note:`7일 ${Math.round(w7)}`,auto:true};
+}
+function eiaFromHtml(html){
+  const rows=html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi)||[];
+  const pairs=[];
+  for(const r of rows){
+    const cells=[...r.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>m[1].replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").trim());
+    if(!cells[0]||!/^20\d{2}-[A-Za-z]{3}/.test(cells[0])) continue;
+    const year=+cells[0].slice(0,4);
+    const rest=cells.slice(1);
+    for(let i=0;i+1<rest.length;i+=2){
+      const d=rest[i], v=rest[i+1];
+      if(/^\d{2}\/\d{2}$/.test(d) && /^[\d,]+$/.test(v)){
+        const [mo,da]=d.split("/").map(Number);
+        pairs.push({t:Date.UTC(year,mo-1,da),v:+v.replace(/,/g,"")});
+      }
+    }
+  }
+  pairs.sort((a,b)=>a.t-b.t);
+  if(pairs.length<2) return [];
+  const chg=pairs.slice(1).map((p,i)=>({t:p.t,abs:Math.abs(p.v-pairs[i].v),lvl:p.v}));
+  const last=chg[chg.length-1];
+  const move=pctile(last.abs, chg.slice(-52).map(c=>c.abs));
+  const fiveY=pairs.filter(p=>last.t-p.t<=365*5*86400000);
+  const tight=pctile(last.lvl, fiveY.map(p=>p.v));
+  const out=[];
+  if(move!=null) out.push({id:"eia_move",name:"EIA |Δ|",score:move,note:last.abs+" kbbl",auto:true});
+  if(tight!=null) out.push({id:"eia_tight",name:"EIA 타이트",score:100-tight,note:last.lvl.toLocaleString()+" kbbl",auto:true});
+  return out;
+}
+function paint(d){
+  document.getElementById("score").textContent=d.score;
+  document.getElementById("label").textContent=d.label;
+  document.getElementById("bar").style.width=d.score+"%";
+  document.getElementById("on").innerHTML=d.legs.map(l=>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #2a333c;font-size:13px"><span>${l.name}</span><span style="color:#c4a35a">${(l.w*100).toFixed(1)}%</span></div>`
+  ).join("");
+  document.getElementById("off").innerHTML=d.dropped.slice().sort((a,b)=>b.w-a.w).map(x=>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid #2a333c;font-size:13px;color:#8b959e"><span>${x.name} <span style="font-size:11px">${x.note||""}</span></span><span>${(x.w*100).toFixed(1)}%</span></div>`
+  ).join("");
+  const mix={wiki:28.5,eia_move:21.5,eia_tight:30.1,U:10,A:5,M:5};
+  const rule={wiki:26.7,eia_move:26.7,eia_tight:26.7,U:10,A:5,M:5};
+  document.getElementById("ml").innerHTML=d.legs.map(l=>{
+    const id=l.id; const r=rule[id]??l.w*100; const m=mix[id]??l.w*100;
+    return `<div class="rowbar"><span>${l.name}</span><div class="g"><b style="width:${r}%"></b><i style="width:${m}%"></i></div><span style="width:44px;text-align:right;color:#c4a35a">${m.toFixed(1)}</span></div>`;
+  }).join("")+'<p class="sub">회색=규칙 1/n · 금=최종(ML 나머지+핀치)</p>';
+  document.getElementById("rows").innerHTML=d.legs.map(l=>
+    `<tr><td>${l.name}<div class="sub">${l.note||""}</div></td>
+     <td class="r">${(l.w*100).toFixed(1)}%</td>
+     <td class="r">${Math.round(l.score)}</td>
+     <td class="r">${l.contrib.toFixed(1)}</td></tr>`
+  ).join("");
+  document.getElementById("drop").textContent="빠진 다리: "+d.dropped.map(x=>x.name).join(", ");
+  document.getElementById("meta").textContent=d.tsUtc+" · "+d.note;
+}
+async function run(){
+  const auto=[];
+  try{
+    const end=new Date(), start=new Date(end-180*864e5);
+    const fmt=d=>`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,"0")}${String(d.getUTCDate()).padStart(2,"0")}`;
+    const url="https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Cushing,_Oklahoma/daily/"+fmt(start)+"/"+fmt(end);
+    const j=await fetch(url).then(r=>r.json());
+    const w=wikiFromItems(j.items||[]);
+    auto.push(w||FALLBACK[0]);
+  }catch{ auto.push(FALLBACK[0]); }
+  try{
+    const html=await fetch("https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=W_EPC0_SAX_YCUOK_MBBL&f=W").then(r=>r.text());
+    const e=eiaFromHtml(html);
+    if(e.length) auto.push(...e); else auto.push(FALLBACK[1],FALLBACK[2]);
+  }catch{ auto.push(FALLBACK[1],FALLBACK[2]); }
+  paint(combine(auto));
+}
+paint(combine(FALLBACK));
+run();
+setInterval(run, 300000);
+</script>
+</body>
+</html>

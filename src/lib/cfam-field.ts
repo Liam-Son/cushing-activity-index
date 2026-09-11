@@ -10,6 +10,8 @@ export const CITY_AGENDA =
   "https://public.destinyhosted.com/agenda_publish.cfm?id=28744";
 export const AQI_URL =
   "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=35.982&longitude=-96.767&current=us_aqi,pm2_5,pm10,nitrogen_dioxide,sulphur_dioxide,ozone&timezone=America/Chicago";
+export const SPP_URL =
+  "https://portal.spp.org/file-browser-api/download/rtbm-lmp-by-bus?path=%2FRTBM-LMP-B-latestInterval.csv";
 
 const BUSY =
   /\b(tank farm|tank|truck|pipeline|oil|pump|flare|industrial|refinery|storage|booster|enbridge|plains|enterprise|keystone|railcar|hiring|overtime|construction|water pressure|noise complaint|idling)\b/i;
@@ -120,6 +122,78 @@ export function scoreAqi(
   };
 }
 
+export type SppRow = {
+  pnode: string;
+  lmp: number;
+  mec: number;
+  mcc: number;
+  mlc: number;
+};
+
+export function isCushingPnode(p: string): boolean {
+  const u = p.toUpperCase();
+  if (u.includes("CUSH")) return true;
+  if (u.includes("PAYNE")) return true;
+  if (u.includes("STILLWATER")) return true;
+  if (u.includes("STROUD")) return true;
+  if (u.includes("OKGETIGER")) return true;
+  if (u.startsWith("CSWS") && u.includes("YALE")) return true;
+  return false;
+}
+
+export function parseSppCsv(text: string): SppRow[] {
+  const lines = text.split(/\r?\n/);
+  if (!lines.length) return [];
+  const head = lines[0].split(",").map((s) => s.trim());
+  const idx = (name: string) =>
+    head.findIndex((h) => h.toUpperCase() === name.toUpperCase());
+  const iP = idx("Pnode");
+  const iL = idx("LMP");
+  const iE = idx("MEC");
+  const iC = idx("MCC");
+  const iM = idx("MLC");
+  if ([iP, iL, iE, iC, iM].some((i) => i < 0)) return [];
+  const out: SppRow[] = [];
+  for (const line of lines.slice(1)) {
+    if (!line.trim()) continue;
+    const c = line.split(",");
+    const pnode = (c[iP] ?? "").trim();
+    const lmp = Number(c[iL]);
+    const mec = Number(c[iE]);
+    const mcc = Number(c[iC]);
+    const mlc = Number(c[iM]);
+    if (!pnode || ![lmp, mec, mcc, mlc].every(Number.isFinite)) continue;
+    out.push({ pnode, lmp, mec, mcc, mlc });
+  }
+  return out;
+}
+
+export function scoreSpp(rows: SppRow[]): {
+  score: number;
+  note: string;
+  n: number;
+  mcc: number | null;
+} {
+  const good = rows.filter(
+    (r) => Math.abs(r.lmp - (r.mec + r.mcc + r.mlc)) <= 0.05,
+  );
+  const cush = good.filter((r) => isCushingPnode(r.pnode));
+  if (!cush.length) return { score: 20, note: "CUSH PNode 없음", n: 0, mcc: null };
+  const allAbs = good.map((r) => Math.abs(r.mcc));
+  const cushAbs = cush.map((r) => Math.abs(r.mcc)).sort((a, b) => a - b);
+  const med = cushAbs[Math.floor(cushAbs.length / 2)] ?? 0;
+  const pct = allAbs.length
+    ? (100 * allAbs.filter((x) => x <= med).length) / allAbs.length
+    : 0;
+  const absS = clamp((med / 15) * 100);
+  return {
+    score: clamp(0.6 * pct + 0.4 * absS),
+    note: `CUSH ${cush.length}노드 · |MCC| ${med.toFixed(2)} · vs SPP p${pct.toFixed(0)}`,
+    n: cush.length,
+    mcc: med,
+  };
+}
+
 export function scoreMuni(text: string): { score: number; note: string } {
   const hits = (text.match(BUSY) ? text.toLowerCase().match(/\b(tank|truck|pipeline|oil|pump|flare|industrial|booster|enbridge|enterprise|pressure|yellow-alert)\b/g) : []) ?? [];
   const uniq = [...new Set(hits)];
@@ -154,6 +228,9 @@ export function emptyTape(): FieldTape {
     aqi: null,
     pm25: null,
     aqiNote: "",
+    sppN: 0,
+    sppMcc: null,
+    sppNote: "",
   };
 }
 
@@ -254,13 +331,17 @@ export async function collectField(): Promise<FieldResult> {
       pm25: j.current?.pm2_5 ?? null,
     }))
     .catch(() => ({ aqi: null as number | null, pm25: null as number | null }));
+  const sppJob = pullText(SPP_URL, 20000)
+    .then(parseSppCsv)
+    .catch(() => [] as SppRow[]);
 
-  const [headlines, title, ac, agenda, air] = await Promise.all([
+  const [headlines, title, ac, agenda, air, sppRows] = await Promise.all([
     newsJob,
     icyJob,
     adsbJob,
     agendaJob,
     aqiJob,
+    sppJob,
   ]);
 
   const z = scoreNews(headlines);
@@ -270,16 +351,20 @@ export async function collectField(): Promise<FieldResult> {
   const muniText = `${SEED_MUNI}\n${agenda}`;
   const muni = scoreMuni(muniText);
   const airScore = scoreAqi(air.aqi, air.pm25);
+  const spp = scoreSpp(sppRows);
+
+  const pinches: FieldResult["pinches"] = {
+    Z: { score: z.score, note: z.note },
+    RADIO: { score: radio.score, note: radio.note },
+    ADSB: { score: adsb.score, note: adsb.note },
+    CAD: { score: cad.score, note: cad.note },
+    M: { score: muni.score, note: muni.note },
+    W: { score: airScore.score, note: airScore.note },
+  };
+  if (spp.n) pinches.SPP = { score: spp.score, note: spp.note };
 
   return {
-    pinches: {
-      Z: { score: z.score, note: z.note },
-      RADIO: { score: radio.score, note: radio.note },
-      ADSB: { score: adsb.score, note: adsb.note },
-      CAD: { score: cad.score, note: cad.note },
-      M: { score: muni.score, note: muni.note },
-      W: { score: airScore.score, note: airScore.note },
-    },
+    pinches,
     tape: {
       radioTitle: radio.note,
       radioHustle: radio.hustle,
@@ -292,6 +377,9 @@ export async function collectField(): Promise<FieldResult> {
       aqi: air.aqi,
       pm25: air.pm25,
       aqiNote: airScore.note,
+      sppN: spp.n,
+      sppMcc: spp.mcc,
+      sppNote: spp.note,
     },
   };
 }

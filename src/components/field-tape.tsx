@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Plane, Radio, Newspaper, Landmark, Wind } from "lucide-react";
+import { Plane, Radio, Newspaper, Landmark, Wind, Zap } from "lucide-react";
 import type { FieldTape } from "@/lib/cfam-engine";
 
 function Card({
@@ -41,7 +41,7 @@ export function FieldTape({ tape }: { tape: FieldTape }) {
             현장 테이프
           </h2>
           <p className="mt-1 text-[11px] text-muted">
-            1600 KUSH · ADS-B · AQI · 산업 CAD · 시청 패킷. 범죄 인명 기록 없음. 유가 예측 아님.
+            1600 KUSH · ADS-B · AQI · SPP · 산업 CAD · 시청 패킷. 범죄 인명 기록 없음. 유가 예측 아님.
           </p>
         </div>
         <span className="rounded border border-paper-line bg-paper px-2 py-1 text-[10px] text-warn">
@@ -66,6 +66,12 @@ export function FieldTape({ tape }: { tape: FieldTape }) {
           label="091-W AQI"
           value={aqi}
           body={tape.aqiNote || "CAMS 위성 모델. 쿠싱 시내 EPA 측정소는 없다."}
+        />
+        <Card
+          icon={<Zap className="size-3.5" aria-hidden />}
+          label="091-SPP"
+          value={tape.sppN ? `${tape.sppN}노드` : "—"}
+          body={tape.sppNote || "RTBM 대기. 그리드 스트레스는 펌핑이 아니다."}
         />
         <Card
           icon={<Plane className="size-3.5" aria-hidden />}

@@ -1,34 +1,14 @@
 쿠싱 액티비티 인덱스 v1  (LS CRUDE / factor 091)
 공유용 소스. 알파 아님. 유가 예측 아님.
 
-091-W 포함
-- 가중치 0.05
-- Open-Meteo CAMS 위성 AQI (쿠싱 시내 EPA 측정소 없음)
-- AQI가 높을수록 바쁨으로 친다 (트럭·플레어 밈)
-- 현장 테이프에 091-W AQI 카드
-
-적용 핀치 (고정 가중)
-S 0.15  QSR 관찰 파일 없으면 몫 재분배
-U 0.10  산업공고
-V 0.10  허가 (원장 없으면 재분배)
-A 0.05  숙박세
-H 0.05  검색 (없으면 재분배)
-M 0.05  시청공고
-W 0.05  CAMS AQI
-Z 0.05  1600 KUSH 뉴스
-ADSB 0.05  저고도 항적
-CAD 0.05  산업 CAD
-RADIO 0.01  허슬곡
-X 0.01  스프레드 (없으면 재분배)
-Y 0.01  펌프갭 (없으면 재분배)
+091-W 포함 — CAMS AQI 가중 0.05
+091-SPP 포함 — SPP RTBM CUSH 노드 |MCC| 가중 0.05
+  그리드 스트레스 ≠ 펌핑. 유가 IC는 라이브 점수에 없음.
+  연구 엔진: research/spp-cushing-v3/
 
 실행
 npm i
 npm run dev
-# 보드: 대시보드 / 연구·검증 / 히스토리
-# 5분 캐시. 원클릭 한 파일은 public/cfam.html
 
 한 파일 엔진
-public/cfam.html 을 브라우저로 열면 위키+EIA+AQI 스냅샷이 돈다.
-
-깃허브 푸시 아님. 이 zip이 머신 스냅샷이다.
+public/cfam.html

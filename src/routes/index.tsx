@@ -267,7 +267,7 @@ function Dashboard({
               </p>
               <p>
                 지금 점수는 가상 10신호가 아닙니다. 적용 다리는 Wikimedia 조회, EIA Cushing 재고 |Δ|·타이트,
-                091-U 산업공고, 091-A 숙박세, 091-M 시청, 091-Z KUSH 뉴스, 091-W AQI, 091-ADSB, 091-CAD, 091-RADIO입니다.
+                091-U 산업공고, 091-A 숙박세, 091-M 시청, 091-Z KUSH 뉴스, 091-W AQI, 091-SPP 전력, 091-ADSB, 091-CAD, 091-RADIO입니다.
                 없는 핀치는 0점이 아니라 빼고 나머지 몫을 재배분합니다.
               </p>
               <h3 className="pt-2 text-sm font-medium text-on-dark">어떤 활동을 관측하나요?</h3>
@@ -671,6 +671,13 @@ const HISTORY: {
     type: "research",
     title: "AQI는 시내 측정소가 아니라 위성 모델",
     body: "쿠싱 EPA/DEQ 지상 측정소는 없다. IQAir·웨더가 보여주는 실시간은 CAMS 위성 모델이다. Open-Meteo로 같은 값을 5분마다 읽어 091-W 0.05에 넣는다. AQI가 높을수록 바쁨으로 친다.",
+  },
+  {
+    date: "09.11",
+    tag: "091-SPP",
+    type: "research",
+    title: "SPP v3 그리드 스트레스를 핀치로 설치",
+    body: "RTBM latest interval에서 CUSH/CUSHOIL/PAYNE 등 23노드 |MCC|를 본다. 가중 0.05. 그리드 스트레스는 펌핑이 아니다. 유가 IC는 라이브 점수에 넣지 않는다. 연구 엔진은 research/spp-cushing-v3.",
   },
   {
     date: "09.11",

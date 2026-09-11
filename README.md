@@ -2,29 +2,19 @@
 
 LS CRUDE / factor 091. Meme observer. Not alpha. Not an oil forecast.
 
-**091-W is in.** Weight 0.05. Open-Meteo CAMS satellite AQI (no EPA station in town). Higher AQI = busier.
+**091-W** weight 0.05 — Open-Meteo CAMS AQI  
+**091-SPP** weight 0.05 — SPP RTBM Cushing-area |MCC|. Grid stress ≠ pumping. Oil IC is not in the live score.
 
-## Download this repo as zip
-GitHub → green **Code** → **Download ZIP**
-Direct: https://github.com/Liam-Son/cushing-activity-index/archive/refs/heads/main.zip
+## Download ZIP
+https://github.com/Liam-Son/cushing-activity-index/archive/refs/heads/main.zip
 
-## Applied pinches
-| id | w | note |
-|---|---|---|
-| S | 0.15 | QSR (dropped if no file) |
-| U | 0.10 | jobs |
-| V | 0.10 | permits |
-| A | 0.05 | lodging tax |
-| H | 0.05 | search |
-| M | 0.05 | city packets |
-| W | 0.05 | CAMS AQI |
-| Z | 0.05 | 1600 KUSH news |
-| ADSB | 0.05 | low-alt flights |
-| CAD | 0.05 | industrial blotter |
-| RADIO | 0.01 | hustle track |
-| X | 0.01 | spread |
-| Y | 0.01 | pump gap |
+Or the snapshot blob:
+https://github.com/Liam-Son/cushing-activity-index/raw/main/public/cushing-activity-index-v1.zip
 
-Missing pinches are **not scored 0**. Their reserved weight is redistributed.
+## Run
+```
+npm i
+npm run dev
+```
 
-One-file engine: `public/cfam.html`
+Research engine: `research/spp-cushing-v3/`

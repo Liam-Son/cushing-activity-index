@@ -34,6 +34,9 @@ export type FieldTape = {
   aqi: number | null;
   pm25: number | null;
   aqiNote: string;
+  sppN: number;
+  sppMcc: number | null;
+  sppNote: string;
 };
 
 export type Board = {
@@ -61,6 +64,7 @@ export const PINCH: Pinch[] = [
   { id: "H", name: "091-H 검색", w: 0.05, score: null, note: "Trends 미수출" },
   { id: "M", name: "091-M 시청공고", w: 0.05, score: 50, note: "3/6" },
   { id: "W", name: "091-W AQI", w: 0.05, score: null, note: "CAMS 대기" },
+  { id: "SPP", name: "091-SPP 전력", w: 0.05, score: null, note: "RTBM 대기" },
   { id: "Z", name: "091-Z 뉴스", w: 0.05, score: null, note: "7일 n 없음" },
   { id: "ADSB", name: "091-ADSB 저고도", w: 0.05, score: null, note: "박스 없음" },
   { id: "CAD", name: "091-CAD 산업", w: 0.05, score: null, note: "블로터 없음" },
@@ -347,7 +351,7 @@ export function combine(
     note: "위키·EIA·KUSH·ADS-B 재조회. 나머지 몫은 ridge+MLP 순열. 알파 아님.",
     explain: allExplain,
     explainNote:
-      "유가 예측 아님. 잠재 바쁨(변동 다리 z평균)을 ridge와 얕은 MLP 순열중요도로 나눠 나머지 몫을 배분. 핀치(U/A/M/Z/W/ADSB/CAD/RADIO)는 밈 고정.",
+      "유가 예측 아님. 잠재 바쁨(변동 다리 z평균)을 ridge와 얕은 MLP 순열중요도로 나눠 나머지 몫을 배분. 핀치(U/A/M/Z/W/SPP/ADSB/CAD/RADIO)는 밈 고정.",
     history: [],
   };
 }

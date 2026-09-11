@@ -15,7 +15,7 @@ import {
 import { explainWeights } from "./cfam-ml";
 import { collectField, overlayPinches, emptyTape } from "./cfam-field";
 
-const TTL_MS = 5 * 60 * 1000; // field tape + AQI cache
+const TTL_MS = 5 * 60 * 1000; // field tape + AQI + SPP cache
 let cache: { at: number; board: Board } | null = null;
 
 async function pull(url: string): Promise<string> {

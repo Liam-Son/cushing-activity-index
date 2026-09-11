@@ -17,6 +17,7 @@ const AREA: Record<string, AreaId> = {
   ADSB: "시설·현장",
   CAD: "시설·현장",
   W: "환경",
+  SPP: "시설·현장",
   X: "시장 구조",
   Y: "시장 구조",
 };
